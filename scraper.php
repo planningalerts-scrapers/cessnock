@@ -9,7 +9,7 @@ date_default_timezone_set('Australia/Sydney');
 $url_base = "http://datracker.cessnock.nsw.gov.au/modules/applicationmaster/";
 $da_page = $url_base . "default.aspx?page=found&1=thisweek&4a=8&6=F";
 $da_page = $url_base . "default.aspx?page=found&1=thismonth&4a=8&6=F";        # Use this URL to get 'This Month' submitted DA, also to test pagination
-$da_page = $url_base . "default.aspx?page=found&1=lastmonth&4a=8&6=F";        # Use this URL to get 'Last Month' submitted DA, also to test pagination
+#$da_page = $url_base . "default.aspx?page=found&1=lastmonth&4a=8&6=F";        # Use this URL to get 'Last Month' submitted DA, also to test pagination
 $comment_base = "mailto:council@cessnock.nsw.gov.au?subject=Development Application Enquiry: ";
 
 $mainUrl = scraperWiki::scrape("$da_page");
@@ -60,10 +60,11 @@ for ($i = 1; $i <= $NumPages; $i++) {
         $date_received = explode('/', $date_received[0]);
         $date_received = "$date_received[2]-$date_received[1]-$date_received[0]";
         
-        # Put all information in an array
+        # Prep a bit more, ready to add these to the array
         $tempstr = explode('</br>', $record->children(3)->plaintext);
         $comment_key =  explode('key=', trim($record->find('a',0)->href));
         
+        # Put all information in an array
         $application = array (
             'council_reference' => trim($record->children(1)->plaintext),
             'address'           => preg_replace('/\s+/', ' ', $tempstr[0]) . ", NSW  AUSTRALIA",
