@@ -1,1 +1,7 @@
-This is a scraper that runs on [Morph](https://morph.io). To get started [see the documentation](https://morph.io/documentation)
+Cessnock City Council scraper
+-------------------------
+
+Scrap all the development applications within 'this week'.
+
+This version also support pagination
+
