@@ -50,7 +50,7 @@ for ($i = 1; $i <= $NumPages; $i++) {
         $context = stream_context_create($request);
         $html = file_get_html($da_page, false, $context);
         $dataset = $html->find("tr[class=rgRow], tr[class=rgAltRow]");
-        echo "Sorting out page $i of $NumPages\r\n";
+        echo "Scraping out page $i of $NumPages\r\n";
     }
 
     # The usual, look for the data set and if needed, save it
@@ -72,7 +72,7 @@ for ($i = 1; $i <= $NumPages; $i++) {
             'info_url'          => $url_base . trim($record->find('a',0)->href),
             'comment_url'       => $comment_base . $comment_key[1] . '&Body=',
             'date_scraped'      => date('Y-m-d'),
-            'date_received'     => $date_received
+            'date_received'     => date('Y-m-d', strtotime($date_received))
         );
 
         # Check if record exist, if not, INSERT, else do nothing
