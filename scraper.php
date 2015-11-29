@@ -8,8 +8,8 @@ date_default_timezone_set('Australia/Sydney');
 
 $url_base = "http://datracker.cessnock.nsw.gov.au/modules/applicationmaster/";
 #$da_page = $url_base . "default.aspx?page=found&1=thisweek&4a=8&6=F";
-#$da_page = $url_base . "default.aspx?page=found&1=thismonth&4a=8&6=F";        # Use this URL to get 'This Month' submitted DA, also to test pagination
-$da_page = $url_base . "default.aspx?page=found&1=lastmonth&4a=8&6=F";        # Use this URL to get 'Last Month' submitted DA, also to test pagination
+$da_page = $url_base . "default.aspx?page=found&1=thismonth&4a=8&6=F";        # Use this URL to get 'This Month' submitted DA, also to test pagination
+#$da_page = $url_base . "default.aspx?page=found&1=lastmonth&4a=8&6=F";        # Use this URL to get 'Last Month' submitted DA, also to test pagination
 $comment_base = "mailto:council@cessnock.nsw.gov.au?subject=Development Application Enquiry: ";
 
 $mainUrl = scraperWiki::scrape("$da_page");
