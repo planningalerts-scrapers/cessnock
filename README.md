@@ -1,7 +1,18 @@
-Cessnock City Council scraper
--------------------------
+#Cessnock City Council scraper
 
-Scrap all the development applications within 'this week'.
+* Server - .NET - ApplicationMaster
+* Accept Terms - Yes
+* Cookie tracking - Yes and managed by PGBrowser
+* Pagnation - No
+* Javascript - No
+* UserAgent - No
+* Request actual DA page for data - No
+* Clearly defined data within a row - Yes
+* JSON - Yes, in the payload
 
-This version also support pagination
+Setup MORPH_PERIOD for data recovery, available options are
+* thisweek (default)
+* thismonth
+* lastmonth
 
+Enjoy
