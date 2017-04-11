@@ -10,28 +10,31 @@ date_default_timezone_set('Australia/Sydney');
 # Default to 'thisweek', use MORPH_PERIOD to change to 'thismonth' or 'lastmonth' for data recovery
 switch(getenv('MORPH_PERIOD')) {
     case 'thismonth' :
-        $period = 'thismonth';
         $sdate = date('01/m/Y');
         $edate = date('t/m/Y');
         break;
     case 'lastmonth' :
-        $period = 'lastmonth';
         $sdate = date('01/m/Y', strtotime('-1 month'));
         $edate = date('t/m/Y', strtotime('-1 month'));
         break;
-    default         :
-        $period = 'thisweek';
-        $sdate = date('d/m/Y', strtotime('-10 days'));
-        $edate = date('d/m/Y');
+    default          :
+        if ( preg_match('/^[0-9]{4}-(0[1-9]|1[0-2])$/', getenv('MORPH_PERIOD'), $matches) == true) {
+            $sdate = date('01/m/Y', strtotime($matches[0]. '-01'));
+            $edate = date('t/m/Y', strtotime($matches[0]. '-01'));
+        } else {
+            $sdate = date('d/m/Y', strtotime('-10 days'));
+            $edate = date('d/m/Y');
+        }
         break;
 }
+print "Getting data between " .$sdate. " and " .$edate. ", changable via MORPH_PERIOD environment\n";
 
-$url_base = "http://datracker.cessnock.nsw.gov.au/";
+$url_base = "http://datracker.cessnock.nsw.gov.au";
 $comment_base = "mailto:council@cessnock.nsw.gov.au";
 
 # Agreed Terms
 $browser = new PGBrowser();
-$page = $browser->get($url_base);
+$page = $browser->get($url_base . "/");
 $form = $page->form();
 $form->set('agreed', 'true');
 $page = $form->submit();
@@ -46,7 +49,7 @@ $json = json_decode($json);
 $json->DateFrom = $sdate;
 $json->DateTo   = $edate;
 $json = json_encode($json);
-$page = $browser->post("http://datracker.cessnock.nsw.gov.au/Application/GetApplications", $junk. urlencode($json), $headers);
+$page = $browser->post($url_base. "/Application/GetApplications", $junk. urlencode($json), $headers);
 
 # get payload from the HTTP respond
 $payload = preg_split("#\n\s*\n#Uis", $page->html);
@@ -65,7 +68,7 @@ foreach ($payload->data as $record) {
         'council_reference' => $record[1],
         'address'           => explode(" <br/>", $record[4])[0],
         'description'       => $description,
-        'info_url'          => $url_base . "Application/ApplicationDetails/" .$record[0],
+        'info_url'          => $url_base . "/Application/ApplicationDetails/" .$record[0],
         'comment_url'       => $comment_base,
         'date_scraped'      => date('Y-m-d'),
         'date_received'     => $date_received
@@ -75,7 +78,7 @@ foreach ($payload->data as $record) {
     $existingRecords = scraperwiki::select("* from data where `council_reference`='" . $application['council_reference'] . "'");
     if (count($existingRecords) == 0) {
         print ("Saving record " . $application['council_reference'] . " - " .$application['address']. "\n");
-//         print_r ($application);
+//        print_r ($application);
         scraperwiki::save(array('council_reference'), $application);
     } else {
         print ("Skipping already saved record " . $application['council_reference'] . "\n");
