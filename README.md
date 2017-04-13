@@ -14,6 +14,6 @@ Setup MORPH_PERIOD for data recovery, available options are
 * thisweek (default)
 * thismonth
 * lastmonth
-* custom = yyyy/mm    (eg. 2017/01)
+* custom = yyyy-mm    (eg. 2017-01)
 
 Enjoy
