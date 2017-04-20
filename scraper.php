@@ -1,89 +1,87 @@
 <?php
 ### Cessnock City Council scraper
+require_once 'vendor/autoload.php';
+require_once 'vendor/openaustralia/scraperwiki/scraperwiki.php';
 
-require 'scraperwiki.php'; 
-require 'simple_html_dom.php';
+use PGuardiario\PGBrowser;
 
 date_default_timezone_set('Australia/Sydney');
 
-$url_base = "http://datracker.cessnock.nsw.gov.au/modules/applicationmaster/";
-#$da_page = $url_base . "default.aspx?page=found&1=thisweek&4a=8&6=F";
-$da_page = $url_base . "default.aspx?page=found&1=thismonth&4a=8&6=F";        # Use this URL to get 'This Month' submitted DA, also to test pagination
-#$da_page = $url_base . "default.aspx?page=found&1=lastmonth&4a=8&6=F";        # Use this URL to get 'Last Month' submitted DA, also to test pagination
-$comment_base = "mailto:council@cessnock.nsw.gov.au?subject=Development Application Enquiry: ";
-
-$mainUrl = scraperWiki::scrape("$da_page");
-$dom = new simple_html_dom();
-$dom->load($mainUrl);
-
-### Collect all 'hidden' inputs, plus add the current $eventtarget
-### $eventtarget is coming from the pages section of the HTML
-function buildformdata($dom, $eventtarget) {
-    $a = array();
-    foreach ($dom->find("input[type=hidden]") as $input) {
-        if ($input->value === FALSE) {
-            $a = array_merge($a, array($input->name => ""));
+# Default to 'thisweek', use MORPH_PERIOD to change to 'thismonth' or 'lastmonth' for data recovery
+switch(getenv('MORPH_PERIOD')) {
+    case 'thismonth' :
+        $sdate = date('01/m/Y');
+        $edate = date('t/m/Y');
+        break;
+    case 'lastmonth' :
+        $sdate = date('01/m/Y', strtotime('-1 month'));
+        $edate = date('t/m/Y', strtotime('-1 month'));
+        break;
+    default          :
+        if ( preg_match('/^[0-9]{4}-(0[1-9]|1[0-2])$/', getenv('MORPH_PERIOD'), $matches) == true) {
+            $sdate = date('01/m/Y', strtotime($matches[0]. '-01'));
+            $edate = date('t/m/Y', strtotime($matches[0]. '-01'));
         } else {
-            $a = array_merge($a, array($input->name => $input->value));
+            $sdate = date('d/m/Y', strtotime('-10 days'));
+            $edate = date('d/m/Y');
         }
-    }
-    $a = array_merge($a, array('__EVENTTARGET' => $eventtarget));
-    $a = array_merge($a, array('__EVENTARGUMENT' => ''));
-
-    return $a;
+        break;
 }
+print "Getting data between " .$sdate. " and " .$edate. ", changable via MORPH_PERIOD environment\n";
 
-# By default, assume it is single page
-$dataset  = $dom->find("tr[class=rgRow], tr[class=rgAltRow]");
-$NumPages = count($dom->find('div[class=rgWrap rgNumPart] a'));
-if ($NumPages === 0) { $NumPages = 1; }
+$url_base = "http://datracker.cessnock.nsw.gov.au";
+$comment_base = "mailto:council@cessnock.nsw.gov.au";
 
-for ($i = 1; $i <= $NumPages; $i++) {
-    # If more than a single page, fetch the page
-    if ($NumPages > 1) {
-        $eventtarget = substr($dom->find('div[class=rgWrap rgNumPart] a',$i-1)->href, 25, 61);
-        $request = array(
-            'http'    => array(
-            'method'  => 'POST',
-            'header'  => 'Content-Type: application/x-www-form-urlencoded\r\n',
-            'content' => http_build_query(buildformdata($dom, $eventtarget))));
-        $context = stream_context_create($request);
-        $html = file_get_html($da_page, false, $context);
-        $dataset = $html->find("tr[class=rgRow], tr[class=rgAltRow]");
-        echo "Scraping out page $i of $NumPages\r\n";
-    }
+# Agreed Terms
+$browser = new PGBrowser();
+$page = $browser->get($url_base . "/");
+$form = $page->form();
+$form->set('agreed', 'true');
+$page = $form->submit();
 
-    # The usual, look for the data set and if needed, save it
-    foreach ($dataset as $record) {
-        # Slow way to transform the date but it works
-        $date_received = explode(' ', (trim($record->children(2)->plaintext)), 2);
-        $date_received = explode('/', $date_received[0]);
-        $date_received = "$date_received[2]-$date_received[1]-$date_received[0]";
-        
-        # Prep a bit more, ready to add these to the array
-        $tempstr = explode('</br>', $record->children(3)->plaintext);
-        $comment_key =  explode('key=', trim($record->find('a',0)->href));
-        
-        # Put all information in an array
-        $application = array (
-            'council_reference' => trim($record->children(1)->plaintext),
-            'address'           => preg_replace('/\s+/', ' ', $tempstr[0]) . ", NSW  AUSTRALIA",
-            'description'       => preg_replace('/\s+/', ' ', $tempstr[1]),
-            'info_url'          => $url_base . trim($record->find('a',0)->href),
-            'comment_url'       => $comment_base . $comment_key[1] . '&Body=',
-            'date_scraped'      => date('Y-m-d'),
-            'date_received'     => date('Y-m-d', strtotime($date_received))
-        );
+/* Request the actual payload
+ * Note: $junk has been modified to download 1000 records - Not for slow server!
+ */
+$headers = ["Accept: application/json, text/javascript, */*; q=0.01"];
+$junk = "draw=1&columns%5B0%5D%5Bdata%5D=0&columns%5B0%5D%5Bname%5D=&columns%5B0%5D%5Bsearchable%5D=true&columns%5B0%5D%5Borderable%5D=false&columns%5B0%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B0%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B1%5D%5Bdata%5D=1&columns%5B1%5D%5Bname%5D=&columns%5B1%5D%5Bsearchable%5D=true&columns%5B1%5D%5Borderable%5D=false&columns%5B1%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B1%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B2%5D%5Bdata%5D=2&columns%5B2%5D%5Bname%5D=&columns%5B2%5D%5Bsearchable%5D=true&columns%5B2%5D%5Borderable%5D=false&columns%5B2%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B2%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B3%5D%5Bdata%5D=3&columns%5B3%5D%5Bname%5D=&columns%5B3%5D%5Bsearchable%5D=true&columns%5B3%5D%5Borderable%5D=false&columns%5B3%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B3%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B4%5D%5Bdata%5D=4&columns%5B4%5D%5Bname%5D=&columns%5B4%5D%5Bsearchable%5D=true&columns%5B4%5D%5Borderable%5D=false&columns%5B4%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B4%5D%5Bsearch%5D%5Bregex%5D=false&start=0&length=1000&search%5Bvalue%5D=&search%5Bregex%5D=false&json=";
+$json = '{"ApplicationNumber":null,"ApplicationYear":null,"DateFrom":"01/04/2017","DateTo":"01/04/2017","DateType":"1","RemoveUndeterminedApplications":false,"ApplicationDescription":null,"ApplicationType":null,"UnitNumberFrom":null,"UnitNumberTo":null,"StreetNumberFrom":null,"StreetNumberTo":null,"StreetName":null,"SuburbName":null,"PostCode":null,"PropertyName":null,"LotNumber":null,"PlanNumber":null,"ShowOutstandingApplications":false,"ShowExhibitedApplications":false,"PropertyKeys":null,"PrecinctValue":null,"IncludeDocuments":false}';
+$json = json_decode($json);
+$json->DateFrom = $sdate;
+$json->DateTo   = $edate;
+$json = json_encode($json);
+$page = $browser->post($url_base. "/Application/GetApplications", $junk. urlencode($json), $headers);
 
-        # Check if record exist, if not, INSERT, else do nothing
-        $existingRecords = scraperwiki::select("* from data where `council_reference`='" . $application['council_reference'] . "'");
-        if (count($existingRecords) == 0) {
-            print ("Saving record " . $application['council_reference'] . "\n");
-            # print_r ($application);
-            scraperwiki::save(array('council_reference'), $application);
-        } else {
-            print ("Skipping already saved record " . $application['council_reference'] . "\n");
-        }
+# get payload from the HTTP respond
+$payload = preg_split("#\n\s*\n#Uis", $page->html);
+$payload = json_decode($payload[1]);
+
+foreach ($payload->data as $record) {
+    $description = explode("<b>", $record[4])[1];
+    $description = strip_tags($description);
+    $description = empty($description) ? $record[2] : preg_replace('/\s+/', ' ', $description);
+
+    $date_received = explode("/", $record[3]);
+    $date_received = $date_received[2]. "-" .$date_received[1]. "-" .$date_received[0];
+
+    # Put all information in an array
+    $application = [
+        'council_reference' => $record[1],
+        'address'           => explode(" <br/>", $record[4])[0],
+        'description'       => $description,
+        'info_url'          => $url_base . "/Application/ApplicationDetails/" .$record[0],
+        'comment_url'       => $comment_base,
+        'date_scraped'      => date('Y-m-d'),
+        'date_received'     => $date_received
+    ];
+
+    # Check if record exist, if not, INSERT, else do nothing
+    $existingRecords = scraperwiki::select("* from data where `council_reference`='" . $application['council_reference'] . "'");
+    if (count($existingRecords) == 0) {
+        print ("Saving record " . $application['council_reference'] . " - " .$application['address']. "\n");
+//        print_r ($application);
+        scraperwiki::save(array('council_reference'), $application);
+    } else {
+        print ("Skipping already saved record " . $application['council_reference'] . "\n");
     }
 }
 
