@@ -69,7 +69,6 @@ foreach ($payload->data as $record) {
         'address'           => explode(" <br/>", $record[4])[0],
         'description'       => $description,
         'info_url'          => $url_base . "/Application/ApplicationDetails/" .$record[0],
-        'comment_url'       => $comment_base,
         'date_scraped'      => date('Y-m-d'),
         'date_received'     => $date_received
     ];
